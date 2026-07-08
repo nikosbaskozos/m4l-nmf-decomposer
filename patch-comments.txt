@@ -1,0 +1,44 @@
+PATCH COMMENTS — paste each line into a comment box next to the control
+========================================================================
+
+Next to the DECOMPOSE button:
+A) DECOMPOSE SELECTED CLIP - click an audio clip in Live first. Tracks appear below it, clips at its position.
+
+Next to REPLACE + START:
+B) MANUAL FILE - "replace" loads a file. Select a target track in Live, then bang "start". Clips land at the playhead.
+
+Next to the LISTEN toggle:
+C) LISTEN - ON: records this track's audio (clip or live input). OFF: analyzes it. Min 0.5 s, max 60 s. Results are placed where the playhead was when you switched ON.
+
+Next to COMPONENTS number:
+components (1-16): how many layers to split into.
+
+Next to FAST toggle:
+fast 2-stage: learn on a ~30 s excerpt, then apply to the whole file. Same output, much faster on long files.
+
+Next to DESCRIPTOR MODE toggle:
+descriptor mode: output only 2 layers - one chosen by ranking + everything else as "rest".
+
+Next to DESCRIPTOR number:
+descriptor: 1=centroid(bright) 2=flatness(noisy) 3=pitch(peak) 4=amplitude(loud).
+
+Next to KEEP RANK number:
+keep rank: which ranked component to isolate. 1 = highest (brightest/noisiest/highest/loudest), last = lowest.
+
+Next to LEARNING SLICES number:
+learning slices: 1 = one 30 s block from mid-file. 6-12 = slices spread across the whole file (better for varied material).
+
+Next to FILTER-ONLY toggle:
+filter-only: no tracks, no files - the run only reloads the real-time filter. Fastest.
+
+Next to CHOOSE FOLDER button:
+output folder (optional): default is the Live Set's folder. Choice is remembered for the session.
+
+Next to FILTER BASE number:
+filter base: which component the live filter passes. Normal run: 1..N (max 8). Descriptor run: 1=chosen, 2=rest.
+
+Next to FILTER ON toggle:
+filter ON: track audio filtered through the selected base. OFF = dry. Follows the LAST analysis. Mono, ~23 ms latency.
+
+General note (place near the top):
+NMF DECOMPOSER - needs Live 12.0.5+ and nmf-device.js next to the .amxd. Watch the Max Console: every step and error is printed there. Send "reset" to the js if stuck. Cmd/Ctrl-G groups the new tracks.
