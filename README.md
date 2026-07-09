@@ -6,8 +6,9 @@ feeds a real-time NMF filter running on the track.
 
 **Requires:** Ableton Live 12.0.5+, Max for Live with FluCoMa installed.
 **Files:** the device (.amxd) and `nmf-device.js` in the same folder.
-**Tip:** keep the Max Console open — the device narrates every step.
-Analysis is mono: stereo sources use the left channel.
+**Tips:** keep the Max Console open — the device narrates every step.
+Analysis is mono: stereo sources use the left channel. 
+For correct clip lengths,  your Live Set sample rate should match the source audio's sample rate. 
 
 ---
 
