@@ -4,6 +4,10 @@ A Max for Live device that splits audio into spectral components using
 FluCoMa's NMF. It builds the components as new tracks in your Set and/or
 feeds a real-time NMF filter running on the track.
 
+a) Decompose selected clips, files, or recorded live input into spectral components, placed into new tracks (arrangement view), or
+b) use the separated spectral templates as real-time filters on the whole track
+c) guide the separation by amplitude, centroid, flatness, or pitch to keep or remove one component (e.g. remove the brightest component, retrieve the second-lowest pitch component) - generate new tracks or use as filter.
+
 **Requires:** Ableton Live 12.0.5+, Max for Live with FluCoMa installed.
 **Files:** the device (.amxd) and `nmf-device.js` in the same folder.
 **Tip:** keep the Max Console open — the device narrates every step.
