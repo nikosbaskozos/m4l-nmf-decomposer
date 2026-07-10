@@ -19,7 +19,7 @@ autowatch = 1;
 inlets = 1;
 outlets = 1;
 
-post("[nmf-device] script v22 loaded OK\n");
+post("[nmf-device] script v23 loaded OK\n");
 
 // ---- config -----------------------------------------------------------
 var SRC = "nmfsrc", RESYN = "nmfresyn", MONO = "nmfmono";
@@ -28,6 +28,7 @@ var ACTS = "nmfacts";                          // activations (for amplitude ran
 var TRAIN = "nmftrain";                        // concatenated slices for scattered learning
 var CAP = "nmfcap";                            // real-time capture buffer
 var CAP_MS = 60000;                            // max capture length (ms)
+var PITCHF = "nmfpitchf", PITCHS = "nmfpitchs"; // fluid.bufpitch~ features/stats
 var DESC_NAMES = [ "centroid", "flatness", "pitch", "amplitude" ];
 var MAXCOMP = 8;              // rank of fluid.nmffilter~ in the patch
 var EXCERPT_FRAMES = 1440000; // ~30 s @ 48 kHz
@@ -41,6 +42,7 @@ var descriptor = 1;   // 1=centroid 2=flatness 3=pitch(peak) 4=amplitude
 var numSlices = 1;    // 1 = one contiguous excerpt; >1 = scattered slices across the file
 var xbSeq = [], xbIdx = 0;
 var nmfRunning = false, composeRunning = false;   // strict handshakes
+var descRunning = false;                          // pitch/stats chain handshake
 var capturing = false, capStartMs = 0;
 var capArrTime = 0, capInsertAt = -1;              // placement snapshot at listen-ON
 var runSrc = SRC;                                  // which buffer this run analyzes
@@ -62,7 +64,7 @@ function status() {
 function reset() {
     busy = false; waitingForFolder = ""; waitingForSrc = false;
     phase = "comp"; nmfPhase = "single";
-    nmfRunning = false; composeRunning = false;
+    nmfRunning = false; composeRunning = false; descRunning = false;
     log("state reset.");
 }
 
@@ -284,11 +286,12 @@ function kickNMF() {
     outlet(0, "nmf", "numchans", 1);      // analyze one channel: stereo/mp3 safe
     if (centroidMode || fastMode) {
         nmfPhase = centroidMode ? "clearn" : "learn";
+        var needResyn = (centroidMode && descriptor === 3) ? 1 : 0;  // pitch needs audio
         if (numSlices > 1) { buildTrainingBuffer(); return; }   // continues in xb chain
         var r = excerptRange();
         outlet(0, "nmf", "source", runSrc);
         outlet(0, "nmf", "basesmode", 0);
-        outlet(0, "nmf", "resynthmode", 0);
+        outlet(0, "nmf", "resynthmode", needResyn);
         outlet(0, "nmf", "startframe", r[0]);
         outlet(0, "nmf", "numframes", r[1]);
         log("stage 1: learning " + count + " bases on excerpt (frames " +
@@ -331,7 +334,7 @@ function xbNext() {
         // training buffer ready -> learn from it
         outlet(0, "nmf", "source", TRAIN);
         outlet(0, "nmf", "basesmode", 0);
-        outlet(0, "nmf", "resynthmode", 0);
+        outlet(0, "nmf", "resynthmode", (centroidMode && descriptor === 3) ? 1 : 0);
         outlet(0, "nmf", "startframe", 0);
         outlet(0, "nmf", "numframes", -1);
         log("stage 1: learning " + count + " bases on scattered slices...");
@@ -374,8 +377,10 @@ function nmfdone() {
         return;
     }
 
-    if (nmfPhase === "clearn") {                    // centroid mode -> rank & build 2 bases
-        rankAndBuildBases();
+    if (nmfPhase === "clearn") {                    // descriptor mode -> rank & build 2 bases
+        if (descriptor === 3) { startPitchChain(); return; }
+        try { rankFromScores(channelScores()); }
+        catch (e) { log("cannot read bases buffer (" + e + ")."); reset(); }
         return;
     }
 
@@ -459,14 +464,58 @@ function channelScores() {
     return out;
 }
 
+// ---- true pitch ranking: fluid.bufpitch~ -> fluid.bufstats~ on resynth audio -------
+function startPitchChain() {
+    phase = "pit";
+    outlet(0, "pitch", "source", RESYN);
+    outlet(0, "pitch", "features", PITCHF);
+    log("analyzing component pitches (fluid.bufpitch~)...");
+    descRunning = true;
+    outlet(0, "pitch", "bang");
+}
+
+function pitchdone() {
+    if (!busy || phase !== "pit") return;
+    if (!descRunning) { log("(ignoring unexpected pitch output)"); return; }
+    descRunning = false;
+    phase = "sta";
+    outlet(0, "stats", "source", PITCHF);
+    outlet(0, "stats", "stats", PITCHS);
+    outlet(0, "stats", "select", "mid");
+    descRunning = true;
+    outlet(0, "stats", "bang");
+}
+
+function statsdone() {
+    if (!busy || phase !== "sta") return;
+    if (!descRunning) { log("(ignoring unexpected stats output)"); return; }
+    descRunning = false;
+    var scores = [];
+    try {
+        var b = new Buffer(PITCHS);
+        // layout: 2 channels per component (median pitch Hz, median confidence)
+        var s = "pitch medians: ";
+        for (var c = 0; c < count; c++) {
+            var hz = Number(b.peek(c * 2 + 1, 0, 1));
+            var cf = Number(b.peek(c * 2 + 2, 0, 1));
+            if (isNaN(hz)) hz = 0;
+            scores.push({ chan: c, score: hz });
+            s += (c + 1) + ": " + hz.toFixed(1) + " Hz (conf " +
+                 (isNaN(cf) ? 0 : cf).toFixed(2) + ")  ";
+        }
+        log(s);
+    } catch (e) {
+        log("pitch buffers unreadable (" + e + ") - falling back to peak-frequency.");
+        scores = channelScores();
+    }
+    rankFromScores(scores);
+}
+
 function chosenName() {
     return "chosen (" + DESC_NAMES[descriptor - 1] + " rank " + keepRank + ")";
 }
 
-function rankAndBuildBases() {
-    var cents;
-    try { cents = channelScores(); }
-    catch (e) { log("cannot read bases buffer (" + e + ")."); reset(); return; }
+function rankFromScores(cents) {
     cents.sort(function (a, z) { return z.score - a.score; });   // highest first
 
     var dn = DESC_NAMES[descriptor - 1];

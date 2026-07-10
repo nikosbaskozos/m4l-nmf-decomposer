@@ -46,7 +46,7 @@ In all cases: press **Cmd/Ctrl-G** afterwards to group the new tracks
 | **components** (1-16) | How many layers to split into. |
 | **fast 2-stage** (toggle) | Learn on a ~30 s excerpt instead of the whole file, then apply. Much faster on long files, same kind of output. |
 | **descriptor mode** (toggle) | Output 2 layers instead of N: one chosen by ranking + "rest" (see §3). |
-| **descriptor** (1-4) | Ranking rule: 1=centroid 2=flatness 3=frequency 4=amplitude. |
+| **descriptor** (1-4) | Ranking rule: 1=centroid 2=flatness 3=pitch 4=amplitude. |
 | **keep rank** (1-16) | Which ranked component to isolate. Rank 1 = highest value, last rank = lowest. |
 | **learning slices** (1-32) | 1 = learn from one ~30 s mid-file block. 6-12 = learn from short slices spread evenly across the file (more representative). |
 | **filter-only** (toggle) | No tracks, no files, no folder needed — the run only reloads the real-time filter. Fastest option. |
@@ -66,12 +66,12 @@ exactly two: one picked by ranking, and everything else summed as
 |---|---|---|
 | 1 centroid | brightest | darkest |
 | 2 flatness | noisiest | most tonal |
-| 3 frequency | highest peak | lowest peak |
+| 3 pitch | highest pitch | lowest pitch |
 | 4 amplitude | loudest | quietest |
 
 Example: 10 components, descriptor 4, keep rank 10 → isolate the
 quietest layer. The console prints the full ranking with scores.
-"Frequency" ranks by each component's strongest spectral peak.
+"pitch" uses  pitch tracking (fluid.bufpitch~) on each component; the console also prints a confidence value per component — low confidence means the component isn't really pitched.
 
 ---
 
@@ -103,11 +103,11 @@ applied to everything on the track from then on.
   excerpt — raise **learning slices** to 8-12 on varied material.
 - Captures (mode C) are short, so slices = 1 is fine there.
 - The device needs these buffers in the patch: nmfsrc, nmfresyn,
-  nmfmono, nmfbases, nmfbases2, nmfacts, nmftrain, nmfcap.
+  nmfmono, nmfbases, nmfbases2, nmfacts, nmftrain, nmfcap, nmfpitchf, nmfpitchs.
 
 ## 6. Troubleshooting
 
-- **Nothing happens:** console must show `script v22 loaded OK`;
+- **Nothing happens:** console must show `script v23 loaded OK`;
   otherwise `nmf-device.js` isn't next to the .amxd or is misnamed.
 - **Tracks but empty clips:** Live must be 12.0.5+. Failed files are
   named in the console; the WAVs are still on disk.
