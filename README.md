@@ -98,6 +98,8 @@ applied to everything on the track from then on.
 
 - NMF starts from a random state: repeat runs give similar components
   in different order. Descriptor mode is how you target a layer reliably.
+- NMF is not shift-invariant: the same sound at different octaves/transpositions 
+  may be split into separate components rather than grouped as one instrument.
 - Component WAVs are timestamped; nothing is ever overwritten.
 - Excerpt learning (fast/descriptor) can miss sounds absent from the
   excerpt — raise **learning slices** to 8-12 on varied material.
